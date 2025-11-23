@@ -35,7 +35,7 @@ class RAGService:
         results = []
         try:
             with DDGS() as ddgs:
-                ddgs_gen = ddgs.text(query, max_results=num_results)
+                ddgs_gen = ddgs.text(query, max_results=num_results, backend='html')
                 if ddgs_gen:
                     for r in ddgs_gen:
                         results.append({
