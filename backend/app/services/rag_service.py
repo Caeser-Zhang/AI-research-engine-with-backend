@@ -14,14 +14,16 @@ class RAGService:
         # Initialize reranker model (lightweight)
         # We use a try-except block to avoid crashing if model download fails or is slow
         self.reranker = None
-        if CrossEncoder:
-            try:
-                self.reranker = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
-            except Exception as e:
-                print(f"Warning: Could not load reranker model: {e}")
+        # Reranker disabled due to SSL/Network issues in current environment
+        # if CrossEncoder:
+        #     try:
+        #         self.reranker = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
+        #     except Exception as e:
+        #         print(f"Warning: Could not load reranker model: {e}")
 
 
     def search(self, query: str, num_results: int = 5) -> List[Dict]:
+        print(f"DEBUG: Executing search for query: '{query}'")
         # DuckDuckGoSearchRun returns a string, we might need a better wrapper for structured results
         # For now, let's use the simple string output and wrap it
         # In a real production app, we'd use a proper search API (Google/Bing)
@@ -48,21 +50,26 @@ class RAGService:
             # Return empty results so the chat can continue without sources
             return []
             
+        print(f"DEBUG: Found {len(results)} results for query: '{query}'")
         return results
 
     def rerank(self, query: str, documents: List[Dict], top_k: int = 3) -> List[Dict]:
         if not self.reranker or not documents:
             return documents[:top_k]
 
-        pairs = [[query, doc['content']] for doc in documents]
-        scores = self.reranker.predict(pairs)
-        
-        # Attach scores
-        for i, doc in enumerate(documents):
-            doc['score'] = float(scores[i])
+        try:
+            pairs = [[query, doc['content']] for doc in documents]
+            scores = self.reranker.predict(pairs)
             
-        # Sort by score descending
-        sorted_docs = sorted(documents, key=lambda x: x.get('score', 0), reverse=True)
-        return sorted_docs[:top_k]
+            # Attach scores
+            for i, doc in enumerate(documents):
+                doc['score'] = float(scores[i])
+                
+            # Sort by score descending
+            sorted_docs = sorted(documents, key=lambda x: x.get('score', 0), reverse=True)
+            return sorted_docs[:top_k]
+        except Exception as e:
+            print(f"Rerank failed: {e}")
+            return documents[:top_k]
 
 rag_service = RAGService()
